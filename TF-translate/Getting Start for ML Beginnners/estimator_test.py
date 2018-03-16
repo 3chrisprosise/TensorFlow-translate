@@ -18,14 +18,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-import pandas as pd
-
-from six.moves import StringIO
-
-import iris_data
 import custom_estimator
+import iris_data
+import pandas as pd
 import premade_estimator
+import tensorflow as tf
+from six.moves import StringIO
 
 FOUR_LINES = "\n".join([
     "1,52.40, 2823,152,2",

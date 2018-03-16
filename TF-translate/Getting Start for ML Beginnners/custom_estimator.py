@@ -17,9 +17,9 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
-import tensorflow as tf
 
 import iris_data
+import tensorflow as tf
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=100, type=int, help='batch size')
@@ -93,12 +93,12 @@ def main(argv):
 
     # Train the Model.
     classifier.train(
-        input_fn=lambda:iris_data.train_input_fn(train_x, train_y, args.batch_size),
+        input_fn=lambda: iris_data.train_input_fn(train_x, train_y, args.batch_size),
         steps=args.train_steps)
 
     # Evaluate the model.
     eval_result = classifier.evaluate(
-        input_fn=lambda:iris_data.eval_input_fn(test_x, test_y, args.batch_size))
+        input_fn=lambda: iris_data.eval_input_fn(test_x, test_y, args.batch_size))
 
     print('\nTest set accuracy: {accuracy:0.3f}\n'.format(**eval_result))
 
@@ -112,9 +112,9 @@ def main(argv):
     }
 
     predictions = classifier.predict(
-        input_fn=lambda:iris_data.eval_input_fn(predict_x,
-                                                labels=None,
-                                                batch_size=args.batch_size))
+        input_fn=lambda: iris_data.eval_input_fn(predict_x,
+                                                 labels=None,
+                                                 batch_size=args.batch_size))
 
     for pred_dict, expec in zip(predictions, expected):
         template = ('\nPrediction is "{}" ({:.1f}%), expected "{}"')

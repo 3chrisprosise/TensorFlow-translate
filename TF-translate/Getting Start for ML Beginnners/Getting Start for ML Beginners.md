@@ -264,4 +264,131 @@ def train_input_fn(features, labels, batch_size):
     * 值(value)为一个例如训练数据集中数据格式的数组
 * train_label 为训练数据集中包含每个样例标签值的数组
 * args.batch_size 是一个定义了数据维度的整型数
-**train_input_fn**函数依赖于**Dataset API**(上面提到的api之一)
+**train_input_fn**函数依赖于**Dataset API**(上面提到的api之一),它是一个能够读取数据并将数据转化为训练所需的格式的高级 TensorFlow API ，下面这个函数的调用把属性和标签转化为 **tf.data.Dataset** 对象，Dataset API 的一个基类 。
+```python
+ dataset = tf.data.Dataset.from_tensor_slices((dict(features), labels))
+```
+tf.dataset 类提供了许多有用的函数来处理训练所需的样例，下面这一行调用了其中三个函数：
+```python
+  dataset = dataset.shuffle(buffer_size=1000).repeat(count=None).batch(batch_size)
+```
+如果训练的样例排序越随机，那么训练的结果会更好。为了给我们的样例随机排序，需要调用 **tf.data.Dataset.shuffle** 这个方法。将缓存大小设置为比样例数据总和（120）更大的数字，确保样例数据能够打乱顺序。
+
+在训练的过程中，训练方法会多次处理样例。在不设置任何参数的情况下调用 **tf.data.Dataset.repeat** 方法来确保 **train** 方法能够无尽的（随机排序后的）训练样例。
+
+训练方法一次能够处理[一批](https://developers.google.com/machine-learning/glossary/#batch)样例数据, **tf.data.Dataset.batch** 方法能够创造一个连接多批次样例的bath（批处理）流，这个程序将默认的[**bath size**](https://developers.google.com/machine-learning/glossary/#batch_size)设置为100，意味着 **batch** 方法会将100个样例串联起来。最理想的批处理大小往往和问题本身有关。就以往的经验来说，越小的批处理维度会使训练方法更快的训练模型，但是有时会使结果的精确度降低。
+
+Evaluate the model(评估我们的模型)
+---------------------------------
+**Evaluating**(评估)意味着我们需要确定我们的模型是否能够高效准确的做出预测。为了确定鸢尾花分类模型的效率，我们传递鸢尾花花萼和花瓣的数据给模型，并让其做出鸢尾花种类的预测，然后将模型给出的预测值和真实值做比。例如，模型在一半的样例输入的情况下能够产生正确预测概率为0.5的预测结果。下图的模型更为高效
+
+|花萼长度(测试数据)|花萼宽度(测试数据)|花朵长度(测试数据)|花朵宽度(测试数据)|花种代号(测试数据)|预测值|
+|------------------|------------------|------------------|------------------|------------------|------|
+|5.9               |3.0                |4.3              |1.5               |1                 |1
+|6.9               |3.1                |5.4              |2.1               |2                 |2
+|5.1               |3.3                |1.7              |0.5               |0                 |0
+|6.4               |2.8                |1.7              |2.2               |1                 |2(错误预测)
+|6.4               |2.8                |1.7              |2.2               |2                 |1
+**产生了一个精准度为80%的模型**
+
+为了评估模型的效率，每个评估器都提供了一个 **evaluate**的方法，在 **premade_estimator.py** 程序中像下面这样调用了 **evaluate** 方法
+```python
+# Evaluate the model.
+eval_result = classifier.evaluate(
+    input_fn=lambda:eval_input_fn(test_x, test_y, args.batch_size))
+
+print('\nTest set accuracy: {accuracy:0.3f}\n'.format(**eval_result))
+```
+**classifier.evaluate** 的调用和我们使用 **classifier.train** 的时候非常类似，最大的区别在于 **classifier.evaluate** 必须从册数数据源而不是训练数据源获取数据。换句话说，为了能够正确的得到模型的效率，评估模型所使用的数据必须与训练所使用的数据不同。**eval_input_fn** 函数能够从测试数据源中获取数据：
+```python
+def eval_input_fn(features, labels=None, batch_size=None):
+    """An input function for evaluation or prediction"""
+    if labels is None:
+        # No labels, use only features.
+        inputs = features
+    else:
+        inputs = (features, labels)
+
+    # Convert inputs to a tf.dataset object.
+    dataset = tf.data.Dataset.from_tensor_slices(inputs)
+
+    # Batch the examples
+    assert batch_size is not None, "batch_size must not be None"
+    dataset = dataset.batch(batch_size)
+
+    # Return the read end of the pipeline.
+    return dataset.make_one_shot_iterator().get_next()
+```
+简短而言， **eval_input_fn** 在被 **classifier.evaluate** 调用的时候做了下面的几件事：
+1. 从训练数据集中提取属性和标签数据并转化为 **tf.dataset**对象。
+2. 创建测试数据集的一个批处理(对于测试数据集无需随机排序或重复代入)
+3. 给 **classifier.evaluate** 返回测试数据的批处理。
+运行代码会不断的生成类似下面这样的输出:
+````python
+Test set accuracy: 0.967
+````
+
+Predicting(预测)
+----------------
+我们训练出了一个模型，并且“认为”它能够很好的处理鸢尾花分类问题，那么接下来让我们使用训练好的模型做几个未标记的数据样例([unlabeled examples](https://developers.google.com/machine-learning/glossary/#unlabeled_example)),仅有属性，但是却没有类别标签。
+
+在现实生活中，我们可能会从不同的 CSV 文件，数据收集应用中获取未标记的样例，然后提供给模型进行预测。现在我们仅仅手动将提供需要预测的数据样例提供给我们的模型：
+```python
+    predict_x = {
+        'SepalLength': [5.1, 5.9, 6.9],
+        'SepalWidth': [3.3, 3.0, 3.1],
+        'PetalLength': [1.7, 4.2, 5.4],
+        'PetalWidth': [0.5, 1.5, 2.1],
+    }
+```
+每个评估器(Estimator)都提供了一个预测方法，在 **premade_estimator.py** 程序中如下方式调用:
+```python
+predictions = classifier.predict(
+    input_fn=lambda:eval_input_fn(predict_x, batch_size=args.batch_size))
+```
+像 **evaluate** 那样，**predict** 方法也能够从 **eval_input_fn** 方法中获取样例数据。
+当执行预测过程的时候，我们不把标签(label)传递给 **eval_input_fn**，因此  **eval_input_fn** 做了如下的事情：
+
+1. 将原有的3元属性手动设置为我们创建的数据
+2. 从手动提供的样例中创建一个批处理
+3. 返回一个可供 **classifier.predict** 调用的批处理(batch)
+
+**predict** 预测方法能够产生一个 python 迭代器 对象，不断生成结果样例的字典，字典中具有几个键，**probabilities**(概率)键的值为三个浮点数，每一个值代表了输入数据是特定鸢尾花花种的概率。例如，考虑如下的 **probabilities**列表：
+```python
+'probabilities': array([  1.19127117e-08,   3.97069454e-02,   9.60292995e-01])
+```
+上面的列表意味着：
+* 输入的样例属于 Setosa(0号花种) 的可能性忽略不计
+* 3.97%的概率属于 Versicolor(1号花种)
+* 96.0%的概率属于 Virginica(2号花种)
+
+**class_ids**键是一个仅有一个元素的数组，其值代表着最有可能的种类。例如：
+```python
+'class_ids': array([2])
+```
+数字2代表着 Virginica(鸢尾花花种) ，下面的代码根据预测值进行预测结果的汇报：
+```python
+for pred_dict, expec in zip(predictions, expected):
+    template = ('\nPrediction is "{}" ({:.1f}%), expected "{}"')
+
+    class_id = pred_dict['class_ids'][0]
+    probability = pred_dict['probabilities'][class_id]
+    print(template.format(SPECIES[class_id], 100 * probability, expec))
+```
+运行代码会生成下面的输出：
+```python
+...
+Prediction is "Setosa" (99.6%), expected "Setosa"
+
+Prediction is "Versicolor" (99.8%), expected "Versicolor"
+
+Prediction is "Virginica" (97.9%), expected "Virginica"
+```
+
+Summary(总结)
+-------------
+这篇文章提供了一个机器学习简短的介绍
+
+因为 **premade_estimators.py** 中的程序依赖于 TensorFlow 高级 API,许多机器学习中的复杂数学问题都被隐藏，如果你想成为一个机器学习专家，我们最终建议学习有关 [**gradient descent**](https://developers.google.com/machine-learning/glossary/#gradient_descent)(梯度下降)，batching(批处理)，neural networks(神经网络) 的知识。
+
+接下来我们建议阅读 [Feature Documents](https://www.tensorflow.org/get_started/feature_columns)(讲解了上面算法的具体流程)文档.

@@ -1,0 +1,4 @@
+tensorflow-master/
+.vscode/
+.idea/
+*.pyc

@@ -289,6 +289,8 @@ Evaluate the model(评估我们的模型)
 |5.1               |3.3                |1.7              |0.5               |0                 |0
 |6.4               |2.8                |1.7              |2.2               |1                 |2(错误预测)
 |6.4               |2.8                |1.7              |2.2               |2                 |1
+
+
 **产生了一个精准度为80%的模型**
 
 为了评估模型的效率，每个评估器都提供了一个 **evaluate**的方法，在 **premade_estimator.py** 程序中像下面这样调用了 **evaluate** 方法
@@ -341,7 +343,7 @@ Predicting(预测)
         'PetalWidth': [0.5, 1.5, 2.1],
     }
 ```
-每个评估器(Estimator)都提供了一个预测方法，在 **premade_estimator.py** 程序中如下方式调用:
+每个评估器(Estimator)都提供了一个 **predict**(预测)方法，在 **premade_estimator.py** 程序中如下方式调用:
 ```python
 predictions = classifier.predict(
     input_fn=lambda:eval_input_fn(predict_x, batch_size=args.batch_size))

@@ -70,7 +70,7 @@ matrix_feature_column = tf.feature_column.numeric_column(key="MyMatrix",
 
 为什么我们会把完美的数值型数据分割为分类数据带入到模型中？分类方法将单独的输入数据分成了四维向量，这样我们的模型就可以学习生成四个独立的权重，而不是生成单一权重；这样的结果是产生更好的模型。更重要的是，bucketizing(这里我译作划分)，划分使得模型能够更加清晰的区分出不同年份，因为其中一个元素的值为(1)而其他三个为(0),当我们使用单一年份作为输入的时候，模型仅能学习线性的关系，所以 bucketing(划分)对于模型的灵活适应性而言更有利。
 
-下面的代码示例战死了如何创建一个 bucketized feature：
+下面的代码示例展示了如何创建一个 bucketized feature：
 ```python
 # First, convert the raw input to a numeric column.
 numeric_feature_column = tf.feature_column.numeric_column("Year")
